@@ -2027,7 +2027,7 @@
                                 if(!marketOffers['results'].includes(hash)) {
                                     marketOffers.results.push(hash);
                                 }
-                            });                            
+                            });
                             await populateListings("", 1);
                         } catch (e) {
                             console.log("Error loading offer: ",e);
@@ -2197,13 +2197,13 @@
               console.log("Error loading reputation data");
           }
           try {
-              jsondata.tags = [];              
+              jsondata.tags = [];
               jsondata.tags = JSON.parse(DOMPurify.sanitize(JSON.stringify(await DDEcontract3.methods.getTags(hash).call())));
           } catch (e) {
               console.log("Error loading tags");
           }
-          if(text != '') {            
-              try {                  
+          if(text != '') {
+              try {
                   var messageData = JSON.parse(jsondata.message);
                   if('recipient' in messageData && 'cipher' in messageData.recipient) {
                     jsondata.image = [''];
@@ -2513,11 +2513,11 @@
           }
           if(offerData3.timelimit[1] != 0 && skipthis != 1) {            
             const timeExtension = Math.abs(parseFloat(parseInt(offerData3.timelimit[1]) - parseInt(offerData3.timelimit[0])) / parseFloat(60 * 60 * 24)).toFixed(2);
-            escrowInfo += "<div>" + translateThis("Sender has requested a time extension for: ") + timeExtension + translateThis("days") + "</div>";
+            escrowInfo += "<div>" + translateThis("Sender has requested a time extension for: ") + timeExtension + " " + translateThis("days") + "</div>";
           }
           if(offerData3.timelimit[2] != 0 && skipthis != 1) {            
             const timeExtension2 = Math.abs(parseFloat(parseInt(offerData3.timelimit[2]) - parseInt(offerData3.timelimit[0])) / parseFloat(60 * 60 * 24)).toFixed(2);
-            escrowInfo += "<div>" + translateThis("Recipient has requested a time extension for: ") + timeExtension2 + translateThis("days") + "</div>";
+            escrowInfo += "<div>" + translateThis("Recipient has requested a time extension for: ") + timeExtension2 + " " + translateThis("days") + "</div>";
           }
           if (skipthis == 1) {
             escrowInfo += "<div>" + translateThis("Time extension granted.") + "</div>";
@@ -3156,7 +3156,7 @@
             datalen = DOMPurify.sanitize(await DDEcontract.methods.getArrayLength(listing.recipient, 3).call());
             if(datalen > 0) {
               contact2 = JSON.parse(DOMPurify.sanitize(await DDEcontract.methods.userdata(listing.recipient, datalen-1).call()));
-              if('mycontact' in contact2) {
+              if(typeof contact2 === 'object' && 'mycontact' in contact2) {
                 if(listing.contact != contact2['mycontact']) {
                     message.innerHTML += '<br><br><bdo>' + translateThis('Recipients contact information:') + '</bdo><br>' + contact2['mycontact'];
                 }
@@ -3177,7 +3177,7 @@
             datalen = DOMPurify.sanitize(await DDEcontract.methods.getArrayLength(listing.sender, 3).call());
             if(datalen > 0) {
               contact2 = JSON.parse(DOMPurify.sanitize(await DDEcontract.methods.userdata(listing.sender, datalen-1).call()));
-              if('mycontact' in contact2) {
+              if(typeof contact2 === 'object' && 'mycontact' in contact2) {
                 if(listing.contact != contact2['mycontact']) {
                     message.innerHTML += '<br><br><bdo>' + translateThis('Senders contact information:') + '</bdo><br>' + contact2['mycontact'];
                 }
@@ -3270,7 +3270,7 @@
                           returnThis=1;
                         } catch (error) {
                           console.error(error);
-                          await showError(error);                          
+                          await showError(error);
                         }
                       }
                     });
@@ -3293,7 +3293,7 @@
                 if(myaccounts != listing.sender) {
                   const acceptTime = document.createElement('button');
                   acceptTime.innerHTML = translateThis('Accept Time Extension Request');
-                  acceptTime.id = 'acceptTime';                  
+                  acceptTime.id = 'acceptTime';
                   acceptTime.onclick = async function() {
                     try {
                       await DDEcontract.methods.requestExtension(listing.hash, myaccounts, listing.timelimit[1]).send({"from":myaccounts,...gasOptions[gasSetting]});
@@ -3335,7 +3335,7 @@
                       const dialog = document.createElement("div");
                       dialog.innerHTML = `
                         <div>` + translateThis('Please enter the number of days you wish to extend:') + `<br></div>
-                          <input id="new-time" type="number"></input><br><br>
+                          <input id="new-time" type="number" min="1"></input><br><br>
                         <div>
                           <button id="confirm-btn">` + translateThis('Confirm') + `</button>&nbsp;&nbsp;
                           <button id="cancel-btn">` + translateThis('Cancel') + `</button>
@@ -3682,7 +3682,7 @@
         </div>
         <div class="form-group">
           <label for="amount-input">` + translateThis('Amount:') + `</label>
-          <input type="number" step="0.00000001" id="amount-input" name="amount-input" required>
+          <input type="number" step="0.00000001" min="0.00000001" id="amount-input" name="amount-input" required>
         </div>
         <div class="form-group">
           <button type="submit" class="btn">` + translateThis('Deposit') + `</button>
@@ -3813,7 +3813,7 @@
         </div>
         <div class="form-group">
           <label for="amount-input">` + translateThis('Amount:') + `</label>
-          <input type="number" step="0.00000001" id="amount-input" name="amount-input" required>
+          <input type="number" step="0.00000001" min="0.00000001" id="amount-input" name="amount-input" required>
         </div>
         <div class="form-group">
           <button type="submit" class="btn">` + translateThis('Withdraw') + `</button>
@@ -3970,16 +3970,16 @@
                 <option value="sender">` + translateThis("I'm the one sending the funds") + `</option>                
               </select><br><span class="vertical-spacer"></span>
               <label for="order-quantity">` + translateThis('Quantity:') + `</label>
-              <input type="number" id="order-quantity" value="1" style="width: 75px;">
+              <input type="number" id="order-quantity" min="1" value="1" style="width: 75px;">
               <label for="order-maximum">` + translateThis('Maximum:') + `</label>
-              <input type="number" id="order-maximum" value="1" style="width: 75px;"><br><span class="vertical-spacer"></span>
+              <input type="number" id="order-maximum" min="1" value="1" style="width: 75px;"><br><span class="vertical-spacer"></span>
               </select><br><span class="vertical-spacer"></span>
               <label for="token">` + translateThis('Token:') + `</label>
               <select id="token-select">
                 <!-- options added dynamically through javascript -->
               </select><br><span class="vertical-spacer"></span>
               <label for="amount">` + translateThis('Amount:') + `</label>
-              <input type="number" id="amount-input" step="0.00000001"><br><span class="vertical-spacer"></span>
+              <input type="number" id="amount-input" min="0" step="0.00000001"><br><span class="vertical-spacer"></span>
               <label for="depositSettings">` + translateThis('Deposit Settings:') + `</label>
               <select id="depositSettings">
                 <option value="recommended">` + translateThis('Use recommended deposit settings') + `</option>
@@ -3987,14 +3987,14 @@
               </select><br><span class="vertical-spacer"></span>
               <div id="senderDepositField" style="display:none;">
                 <label for="senderDeposit">` + translateThis('Sender Deposit:') + `</label>
-                <input type="number" id="sender-deposit-input" step="0.00000001">
+                <input type="number" id="sender-deposit-input" min="0" step="0.00000001">
               </div><br><span class="vertical-spacer"></span>
               <div id="receiverDepositField" style="display:none;">
                 <label for="receiverDeposit">` + translateThis('Receiver Deposit:') + `</label>
-                <input type="number" id="recipient-deposit-input" step="0.00000001">
+                <input type="number" id="recipient-deposit-input" min="0" step="0.00000001">
               </div><br><span class="vertical-spacer"></span>
               <label for="timeLimit">` + translateThis('Time Limit (in weeks):') + `</label>
-              <input type="number" id="timeLimit" value="4"><br><span class="vertical-spacer"></span>
+              <input type="number" id="timeLimit" min="1" value="4"><br><span class="vertical-spacer"></span>
               <p id="timeLimitWarning" style="display:none;">` + translateThis('Notice: Fast expiration times can cause users to lose funds if they lose access to their computers. The default time of one month or longer is recommended for this reason.') + `</p><br><span class="vertical-spacer"></span>
               <label for="contractDetails">` + translateThis('Contract Details:') + `</label><br><span class="vertical-spacer"></span>
               <textarea id="contractDetails"></textarea><br><span class="vertical-spacer"></span>
@@ -4005,9 +4005,9 @@
               <input id="contactInfo"></textarea><br><span class="vertical-spacer"></span>
               <label for="key-words" id="key-label">` + translateThis('Search key words(optional):') + `</label>
               <button type="button" id="key-words">` + translateThis('Add search terms') + `</button><br><span class="vertical-spacer"></span>
-              <label for="allowcounters">` + translateThis('Allow counter offers') + `  </label>
+              <label for="allowcounters" id="allowcounterslabel">` + translateThis('Allow counter offers') + `  </label>
               <input type="checkbox" id="allowcounters"><br><span class="vertical-spacer"></span>
-              <label for="autoaccept">` + translateThis('Automatically accept matching offers') + `  </label>
+              <label for="autoaccept" id="autoacceptlabel">` + translateThis('Automatically accept matching offers') + `  </label>
               <input type="checkbox" id="autoaccept"><br><br><span class="vertical-spacer"></span>
               <button type="submit">` + translateThis('Submit') + `</button>
             </form>
@@ -4061,14 +4061,18 @@
           if (contractType.value === 'private') {
             counterPartyAddressField.style.display = 'block';
             auto.style.display = 'none';
+            document.getElementById("autoacceptlabel").style.display = 'none';
             allowcounters.style.display = 'none';
+            document.getElementById("allowcounterslabel").style.display = 'none';
             myterms = [];
             addWord.style.display = 'none';
             addWordLabel.style.display = 'none';
           } else {
             counterPartyAddressField.style.display = 'none';
             auto.style.display = 'block';
+            document.getElementById("autoacceptlabel").style.display = 'block';
             allowcounters.style.display = 'block';
+            document.getElementById("allowcounterslabel").style.display = 'block';
             addWord.style.display = 'block';
             addWordLabel.style.display = 'block';
           }
@@ -4163,7 +4167,7 @@
         }
 
         addWord.onclick = async function() {
-            myterms = await addWords();
+            myterms = await addWords(myterms);
         }
 
         // Add the form submit event listener
@@ -4386,7 +4390,7 @@
                     confirmButtonText: translateThis('Yes'),
                     cancelButtonText: translateThis('No'),
                   }).then((result) => {
-                    if(result.isConfirmed) {
+                    if(!result.isConfirmed) {
                       popupContainer.remove();
                       returnThis2 = true;
                       return;
@@ -4420,7 +4424,7 @@
               ).send({"from":myaccounts,...gasOptions[gasSetting]});
                 await Swal.fire(translateThis("Contract creation success!"));
                 await loadUser();
-                if(emailClient.checked && sender2 != "0x0000000000000000000000000000000000000000" && recipient2 != "0x0000000000000000000000000000000000000000" && contact2 != '' && 'mycontact' in contact2 && contact2['mycontact'].includes("@")) {
+                if(emailClient.checked && sender2 != "0x0000000000000000000000000000000000000000" && recipient2 != "0x0000000000000000000000000000000000000000" && contact2 != '' && typeof contact2 === 'object' && 'mycontact' in contact2 && contact2['mycontact'].includes("@")) {
                   Swal.fire({
                     title: translateThis('Notify Counterparty'),
                     text: translateThis('Would you like to email the counterparty to notify them of your offer?'),
@@ -4494,10 +4498,10 @@
         document.head.appendChild(style);
     }
 
-    async function addWords() {
+    async function addWords(theterms = "") {
       return new Promise((resolve) => {
         const dialog = document.createElement("div");
-        const addedTerms = [];
+        var addedTerms = [];
 
         // Predefined list of popular key words
         const popularKeywords = ["goods", "services", "barter", "crypto", "real-estate", "electronics", "metals"];
@@ -4542,6 +4546,11 @@
             termElement.textContent = term;
             termList.appendChild(termElement);
           });
+        }
+
+        if(theterms != "") {
+          addedTerms = theterms;
+          displayAddedTerms();
         }
 
         termList.addEventListener('click', function (event) {
@@ -4645,7 +4654,7 @@
                   const dialog = document.createElement("div");
                   dialog.innerHTML = `
                     <div>` + translateThis('Please enter the quantity you wish to purchase:') + `<br></div>
-                      <input id="new-quantity" type="number"></input><br><br>
+                      <input id="new-quantity" type="number" min="1"></input><br><br>
                     <div>
                       <button id="confirm-btn">` + translateThis('Confirm') + `</button>&nbsp;&nbsp;
                       <button id="cancel-btn">` + translateThis('Cancel') + `</button>
@@ -4674,7 +4683,7 @@
                     quantity = parseInt(document.getElementById('new-quantity').value);
                     if(quantity > parseInt(mylisting.quantity[0]) || quantity > parseInt(mylisting.quantity[1])) {
                       await Swal.fire(translateThis("Quantity exceeds what is available!"));
-                      return;                        
+                      return;
                     }
                     dialog.remove();
                     mylisting.quantity[0] = quantity.toString();
@@ -4735,7 +4744,7 @@
                     ).send({"from":myaccounts,...gasOptions[gasSetting]});
                       await Swal.fire(translateThis("Contract accepted!"));
                       await loadUser();
-                      if(emailClient.checked && contact2 != '' && 'mycontact' in contact2 && contact2['mycontact'].includes("@")) {
+                      if(emailClient.checked && contact2 != '' && typeof contact2 === 'object' && 'mycontact' in contact2 && contact2['mycontact'].includes("@")) {
                         Swal.fire({
                           title: translateThis('Notify Counterparty'),
                           text: translateThis('Would you like to email the counterparty to notify them of your offer?'),
@@ -4780,9 +4789,19 @@
                       return false;
                   }
                   if (web3.utils.toBN(counterbalance).lt(web3.utils.toBN(mylisting.amount).add(web3.utils.toBN(mylisting.depositSender)).mul(web3.utils.toBN(quantity)))) {
-                      await Swal.firetranslateThis(("The counter-party does not have enough funds in their account to proceed. Please notify the counter-party."));
+                      await Swal.fire(translateThis("The counter-party does not have enough funds in their account to proceed. Please notify the counter-party."));
                       return false;
                   }
+                }
+                var datalen = 0;
+                var contact2 = '';
+                try {
+                    datalen = DOMPurify.sanitize(await DDEcontract.methods.getArrayLength(counterparty, 3).call());
+                    if(datalen > 0) {
+                        contact2 = JSON.parse(DOMPurify.sanitize(await DDEcontract.methods.userdata(counterparty, datalen-1).call()));
+                    }
+                } catch(e) {
+                    console.log(e);
                 }
                 //If one wants to show a grand total
                 //mylisting.amount *= quantity;
@@ -4803,7 +4822,7 @@
                 ).send({"from":myaccounts,...gasOptions[gasSetting]});
                   await Swal.fire(translateThis("Contract accepted!"));
                   await loadUser();
-                  if(emailClient.checked && contact2 != '' && 'mycontact' in contact2 && contact2['mycontact'].includes("@")) {
+                  if(emailClient.checked && contact2 != '' && typeof contact2 === 'object' && 'mycontact' in contact2 && contact2['mycontact'].includes("@")) {
                     Swal.fire({
                       title: translateThis('Notify Counterparty'),
                       text: translateThis('Would you like to email the counterparty to notify them of your offer?'),
@@ -4885,7 +4904,7 @@
                     myaccounts
                   ).send({"from":myaccounts,...gasOptions[gasSetting]});
                   await Swal.fire(translateThis("Contract removed!"));
-                  await loadUser();                  
+                  await loadUser();
                 } else {
                   await DDEcontract.methods.cancelPrivateOffer(
                     listing.hash,
@@ -4905,9 +4924,9 @@
       dialog.innerHTML = `
         <div>` + translateThis('Please enter the updated quantity:') + `<br></div>
           <label for="new-quantity">` + translateThis('Total Supply:') + ` </label>
-          <input id="new-quantity" type="number"></input><br><br>
+          <input id="new-quantity" type="number" min="1"></input><br><br>
           <label for="new-maximum">` + translateThis('Maximum:') + ` </label>
-          <input id="new-maximum" type="number"></input><br><br>
+          <input id="new-maximum" type="number" min="1"></input><br><br>
         <div>
           <button id="confirm-btn">` + translateThis('Confirm') + `</button>&nbsp;&nbsp;
           <button id="cancel-btn">` + translateThis('Cancel') + `</button>
