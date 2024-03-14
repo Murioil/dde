@@ -57,6 +57,7 @@ contract TwoPartyEscrow {
     mapping(address => uint) public cooldown;
     uint public affiliateFee;
     address public minter;
+    address public defaultAffiliate;
     string[] public publicdata;
     uint lock;
     address WETH;
@@ -81,6 +82,10 @@ contract TwoPartyEscrow {
         if(completed[affiliate][2] < 10) {
             completed[affiliate][2] = 10;
         }
+    }
+    function changeDefaultAffiliate(address affiliate) public {
+        require(msg.sender == minter);
+        defaultAffiliate = affiliate;
     }
     function changeMinter(address new_minter) public {
         require(msg.sender == minter);
@@ -454,7 +459,11 @@ contract TwoPartyEscrow {
             if(afee != 0) {
                 address theReferred = contracts[hash].referred;
                 if(theReferred == address(0)) {
-                    theReferred = referral[sender];
+                    if(defaultAffiliate != address(0)) {
+                        theReferred = defaultAffiliate;
+                    } else {
+                        theReferred = referral[sender];
+                    }
                 }
                 if(theReferred != address(0)) {
                     total = ((contracts[hash].amount) * afee) / 10000;
