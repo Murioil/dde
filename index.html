@@ -886,6 +886,38 @@
                 gasPrice = "2500000000";
             }
         });
+        if (currentChainId == "1") {
+            document.getElementById("connectionstatus").innerHTML = translateThis("Unsupported network");
+            return;
+            netname = "Ethereum";
+            netname2 = "ETH";
+            DDEaddy = "0x4fD25D3ed9FC8C532cc27933184b39Fcc41acaAC";
+            gasOptions[0] = {
+              gasLimit: 4000000,
+              gasPrice: null,
+              maxPriorityFeePerGas: window.web3.utils.toWei('1.5', 'gwei'), // Max priority fee of 1.5 Gwei
+              maxFeePerGas: window.web3.utils.toWei('1.6', 'gwei'), // Max base fee of 1.5 Gwei
+            };
+            gasOptions[1] = {
+              gasLimit: 4000000,
+              gasPrice: gasPrice
+            };
+            tokens = [
+              {
+                  address: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+                  token: "ETH",
+                  image: "eth.png",
+                  decimals: "18"
+              },
+              {
+                  address: "0x78e6895932FC6e7fbbE6bf65AF11246B9472ef2d",
+                  token: "mDAI",
+                  image: "murioil.png",
+                  decimals: "18"
+              }
+            ];
+            tokennames = {"0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2":"ETH","0x78e6895932FC6e7fbbE6bf65AF11246B9472ef2d":"mDAI"}
+        }
         if (currentChainId == "11155111") {
             netname = "Sepolia Testnet";
             netname2 = "ETH";
