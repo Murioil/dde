@@ -7,7 +7,6 @@ interface ERC20 {
     function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);    
     function approve(address spender, uint256 amount) external returns (bool);
 }
-
 interface IWETH {
     function deposit() external payable;
     function transfer(address to, uint256 value) external returns (bool);
@@ -29,7 +28,6 @@ contract TwoPartyEscrow {
         uint[2] status;
         string message;
     }
-
     mapping(address => mapping(address => uint)) public userBalance;
     bytes32[] public markets;
     uint public marketslength;
@@ -55,18 +53,20 @@ contract TwoPartyEscrow {
     mapping(address => address[]) public custodianList;
     mapping(address => address[]) public custodianList2;
     mapping(address => uint) public cooldown;
+    mapping(address => bool) public lockCustodian;
     uint public affiliateFee;
     address public minter;
     address public defaultAffiliate;
     string[] public publicdata;
+    address public WETH;
+    address public defaultCustodian;
     uint lock;
-    address WETH;
 
     constructor(address _WETH) {
         WETH = _WETH;
         minter = msg.sender;
         cooldown[address(0)] = 259200;
-    }    
+    }
     receive() external payable {
         assert(msg.sender == WETH);
     }
@@ -91,6 +91,10 @@ contract TwoPartyEscrow {
         require(msg.sender == minter);
         minter = new_minter;
     }
+    function changeDefaultCustodian(address new_custodian) public {
+        require(msg.sender == minter);
+        defaultCustodian = new_custodian;
+    }
     function changeFee(uint newfee) public {
         require(msg.sender == minter);
         require(newfee >= 0 && newfee <= 100); //1% maximum
@@ -105,6 +109,7 @@ contract TwoPartyEscrow {
         cooldown[address(0)] = newtime;
     }
     function authorizeCustodian(address custodian, bool status) public {
+        require(!lockCustodian[msg.sender]);
         if(isCustodian[msg.sender][custodian] == false && status) {
             custodianList[msg.sender].push(custodian);
             custodianList2[custodian].push(msg.sender);
@@ -112,7 +117,13 @@ contract TwoPartyEscrow {
         isCustodian[msg.sender][custodian] = status;
     }
     function authorizeContract(address custodian, bytes32 hash, bool status) public {
+        require(!lockCustodian[msg.sender]);
         isAuthorized[msg.sender][custodian][hash] = status;
+    }
+    function removeCustodianLock(address user) public {
+        require(msg.sender == defaultCustodian);
+        isCustodian[user][msg.sender] = false;
+        lockCustodian[user] = false;
     }
     function changeCustomFee(uint newfee) public {
         require(newfee >= affiliateFee && newfee <= 5000);
@@ -240,7 +251,7 @@ contract TwoPartyEscrow {
                 if(openslotlength[mytag] > 0) {
                     openslotlength[mytag] -= 1;
                     tagposition[hash].push(openslot[mytag][openslotlength[mytag]]);
-                    hashtag[mytag][openslot[mytag][openslotlength[mytag]]] = hash;                    
+                    hashtag[mytag][openslot[mytag][openslotlength[mytag]]] = hash;
                 } else {
                     tagposition[hash].push(taglength[mytag]);
                     taglength[mytag] += 1;
@@ -249,6 +260,11 @@ contract TwoPartyEscrow {
                 x += 1;
             }
             tagdata[hash] = _hashtags;
+        }
+        if(msg.sender == _recipient[0] && newContract.depositRecipient == 0 && defaultCustodian != address(0)) {
+            authorizeCustodian(defaultCustodian, true);
+            authorizeContract(defaultCustodian, bytes32(0), true);
+            lockCustodian[msg.sender] = true;
         }
         contracts[hash] = newContract;
         initialized[hash] = true;
@@ -345,6 +361,11 @@ contract TwoPartyEscrow {
             userBalance[sender][newContract.token] -= (newContract.amount + newContract.depositSender);
             bytes32 acceptedhash = keccak256(abi.encodePacked(sender, recipient, newContract.token, newContract.amount, newContract.depositSender, newContract.depositRecipient, newContract.timelimit[0], newContract.message));
             require(initialized[acceptedhash] == false);
+            if(msg.sender == recipient && contracts[hash].depositRecipient == 0 && defaultCustodian != address(0)) {
+                authorizeCustodian(defaultCustodian, true);
+                authorizeContract(defaultCustodian, acceptedhash, true);
+                lockCustodian[msg.sender] = true;
+            }
             initialized[acceptedhash] = true;
             newContract.timelimit[1] = 0;
             newContract.timelimit[2] = 0;
@@ -354,6 +375,11 @@ contract TwoPartyEscrow {
         } else {
             bytes32 counterhash = keccak256(abi.encodePacked(sender, recipient, newContract.token, newContract.amount, newContract.depositSender, newContract.depositRecipient, newContract.timelimit[0], newContract.message, block.timestamp));
             require(initialized[counterhash] == false);
+            if(msg.sender == recipient && contracts[hash].depositRecipient == 0 && defaultCustodian != address(0)) {
+                authorizeCustodian(defaultCustodian, true);
+                authorizeContract(defaultCustodian, bytes32(0), true);
+                lockCustodian[msg.sender] = true;
+            }
             initialized[counterhash] = true;
             newContract.timelimit[1] = offerlimit;
             newContract.timelimit[2] = 0;
