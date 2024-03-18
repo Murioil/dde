@@ -97,7 +97,7 @@ contract TwoPartyEscrow {
     }
     function changeFee(uint newfee) public {
         require(msg.sender == minter);
-        require(newfee >= 0 && newfee <= 100); //1% maximum
+        require(newfee >= 0 && newfee <= 300); //3% maximum
         affiliateFee = newfee;
     }
     function changeThreshold(address token, uint newfee) public {
