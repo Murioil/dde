@@ -486,13 +486,13 @@ contract TwoPartyEscrow {
                     total = ((contracts[hash].amount) * afee) / 10000;
                     userBalance[theReferred][contracts[hash].token] += total;
                 } else {
-                    if(afee > 100) {
-                        afee = 100;
+                    if(afee > 300) {
+                        afee = 300;
                     }
-                    if(afee < 90) {
+                    if(afee < 290) {
                         total = ((contracts[hash].amount) * (afee + 10)) / 10000;
                     } else {
-                        total = ((contracts[hash].amount) * 100) / 10000;
+                        total = ((contracts[hash].amount) * 300) / 10000;
                     }
                     userBalance[address(0)][contracts[hash].token] += total;
                 }
