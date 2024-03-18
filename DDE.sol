@@ -420,10 +420,7 @@ contract TwoPartyEscrow {
         removeTags(hash);
     } 
     function requestExtension(bytes32 hash, address user, uint timelimit) public {
-        if(msg.sender != user) {
-            require(isCustodian[user][msg.sender]);
-            require(isAuthorized[user][msg.sender][hash] || isAuthorized[user][msg.sender][bytes32(0)] || isAuthorized[user][address(0)][bytes32(0)]);
-        }
+        checkCustodian(hash, user);
         require(block.timestamp < contracts[hash].timelimit[0]); //Escrow has expired, the funds have been destroyed        
         require(contracts[hash].status[0] < 4 && contracts[hash].status[1] < 4); //The deal has already completed
         require(contracts[hash].status[0] > 0 && contracts[hash].status[1] > 0); //Can only extend in escrow
@@ -439,10 +436,7 @@ contract TwoPartyEscrow {
         }
     }
     function cancelEscrow(bytes32 hash, address user) public {
-        if(msg.sender != user) {
-            require(isCustodian[user][msg.sender]);
-            require(isAuthorized[user][msg.sender][hash] || isAuthorized[user][msg.sender][bytes32(0)] || isAuthorized[user][address(0)][bytes32(0)]);
-        }
+        checkCustodian(hash, user);
         require(block.timestamp < contracts[hash].timelimit[0]); //Escrow has expired, the funds have been destroyed
         require(contracts[hash].status[0] < 4 && contracts[hash].status[1] < 4); //The deal has already completed
         require(contracts[hash].status[0] > 0 && contracts[hash].status[1] > 0);
@@ -462,10 +456,7 @@ contract TwoPartyEscrow {
         }
     }
     function completeEscrow(bytes32 hash, address user) public {
-        if(msg.sender != user) {
-            require(isCustodian[user][msg.sender]);
-            require(isAuthorized[user][msg.sender][hash] || isAuthorized[user][msg.sender][bytes32(0)] || isAuthorized[user][address(0)][bytes32(0)]);
-        }
+        checkCustodian(hash, user);
         require(block.timestamp < contracts[hash].timelimit[0]); //Escrow has expired, the funds have been destroyed
         require(contracts[hash].status[0] < 4 && contracts[hash].status[1] < 4); //The deal has already completed
         require(contracts[hash].status[0] > 0 && contracts[hash].status[1] > 0);
@@ -523,10 +514,7 @@ contract TwoPartyEscrow {
         completed[recipient][0] += 1;
     }
     function expireEscrow(bytes32 hash, address user) public { //Useful for a reputation system
-        if(msg.sender != user) {
-            require(isCustodian[user][msg.sender]);
-            require(isAuthorized[user][msg.sender][hash] || isAuthorized[user][msg.sender][bytes32(0)] || isAuthorized[user][address(0)][bytes32(0)]);
-        }
+        checkCustodian(hash, user);
         require(contracts[hash].sender == user || contracts[hash].recipient == user);        
         require(contracts[hash].status[0] < 4 && contracts[hash].status[1] < 4);
         require(contracts[hash].status[0] > 0 && contracts[hash].status[1] > 0);
@@ -536,10 +524,7 @@ contract TwoPartyEscrow {
         contracts[hash].status = [uint(5),uint(5)];
     }
     function cancelPrivateOffer(bytes32 hash, address user) public {
-        if(msg.sender != user) {
-            require(isCustodian[user][msg.sender]);
-            require(isAuthorized[user][msg.sender][hash] || isAuthorized[user][msg.sender][bytes32(0)] || isAuthorized[user][address(0)][bytes32(0)]);
-        }
+        checkCustodian(hash, user);
         require(contracts[hash].sender == user || contracts[hash].recipient == user);
         bool valid;
         if(contracts[hash].status[0] == 1 && contracts[hash].status[1] == 0) {
@@ -550,6 +535,12 @@ contract TwoPartyEscrow {
         }
         require(valid);
         contracts[hash].status = [uint(4),uint(4)];
+    }
+    function checkCustodian(bytes32 hash, address user) private view {
+        if(msg.sender != user) {
+            require(isCustodian[user][msg.sender]);
+            require(isAuthorized[user][msg.sender][hash] || isAuthorized[user][msg.sender][bytes32(0)] || isAuthorized[user][address(0)][bytes32(0)]);
+        }
     }
     function removeMarketOffer(bytes32 hash, address user) public {
         uint marketId = userMarketID[hash];
