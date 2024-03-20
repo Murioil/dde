@@ -481,6 +481,8 @@
           <option value="0" t-id="39">Use default IPFS Pinata Gateway</option>
         </select>
         <br><br>
+        <button onclick="setCustodian()" t-id="51">Set cosigner</button><br><br>
+        <br><br>        
         <h2 t-id="45" style="font-size: 16px">Earn</h2>
         <p id="affiliateInfo" t-id="46">Not connected</p>
         <button onclick="copyAffiliateLink()" t-id="47">Copy affiliate link</button><br><br>
@@ -893,13 +895,13 @@
             netname2 = "ETH";
             DDEaddy = "0x4fD25D3ed9FC8C532cc27933184b39Fcc41acaAC";
             gasOptions[0] = {
-              gasLimit: 4000000,
+              gasLimit: 1500000,
               gasPrice: null,
               maxPriorityFeePerGas: window.web3.utils.toWei('1.5', 'gwei'), // Max priority fee of 1.5 Gwei
               maxFeePerGas: window.web3.utils.toWei('1.6', 'gwei'), // Max base fee of 1.5 Gwei
             };
             gasOptions[1] = {
-              gasLimit: 4000000,
+              gasLimit: 1500000,
               gasPrice: gasPrice
             };
             tokens = [
@@ -932,13 +934,13 @@
             netname2 = "ETH";
             DDEaddy = "0xe491CC5b00e24fE53cCA89adaC79f5D7FdA80a82";
             gasOptions[0] = {
-              gasLimit: 4000000,
+              gasLimit: 1500000,
               gasPrice: null,
               maxPriorityFeePerGas: window.web3.utils.toWei('1.5', 'gwei'), // Max priority fee of 1.5 Gwei
               maxFeePerGas: window.web3.utils.toWei('1.6', 'gwei'), // Max base fee of 1.5 Gwei
             };
             gasOptions[1] = {
-              gasLimit: 4000000,
+              gasLimit: 1500000,
               gasPrice: gasPrice
             };
             tokens = [
@@ -1440,6 +1442,45 @@
       }
     }
 
+    async function setCustodian() {
+      await Swal.fire({
+        title: translateThis('Set Cosigner/Custodian'),
+        text: translateThis('Having a cosigner is useful in case you are unable to complete your deals. This should be someone you trust completely. They will only be given authorization to sign on your behalf to confirm or complete contracts so the contracts do not get held up in escrow. Please enter the custodians address below.')
+        input: 'text',
+        showCancelButton: true,
+        confirmButtonText: translateThis('Submit'),
+        cancelButtonText: translateThis('Cancel'),
+        inputValidator: (value) => {
+          if (!value) {
+            return 'You need to enter something!';
+          }
+        },
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          if (!web3.utils.isAddress(result.value)) {              
+              Swal.fire(translateThis("Address was not valid."));
+              return;
+          }
+          try {
+            await DDEcontract.methods.authorizeCustodian(result.value, true).send({"from":myaccounts,...gasOptions[gasSetting]});
+            Swal.fire(translateThis("Cosigner designation successful. Now you will be asked to authorize the cosigner for contract clearance."));
+          } catch (e) {
+            console.log(e);
+            await showError(e);
+            return;
+          }
+          try {
+            await DDEcontract.methods.authorizeContract(result.value, 0, true).send({"from":myaccounts,...gasOptions[gasSetting]});
+            Swal.fire(translateThis("Success!"));
+          } catch (e) {
+            console.log(e);
+            await showError(e);
+            return;
+          }
+        }
+      });
+    }
+
     async function registerData() {
       myemail = document.getElementById('myContactInfo').value;
       const { value: formValues } = await Swal.fire({
@@ -1562,7 +1603,7 @@
       }).then(async (result) => {
         if (result.isConfirmed) {
           const affiliate = result.value;
-          if (!web3.utils.isAddress(referral)) {              
+          if (!web3.utils.isAddress(affiliate)) {              
               Swal.fire(translateThis("Address was not valid."));
               return;
           }
