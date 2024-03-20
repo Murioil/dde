@@ -879,16 +879,16 @@
         currentChainId = DOMPurify.sanitize(await web3.eth.net.getId());
         var netname = "unknown";
         var netname2 = "ETH";
-        await web3.eth.getGasPrice().then(function (theGasPrice) {
-            gasPrice = window.web3.utils.toWei(parseInt(parseInt(DOMPurify.sanitize(theGasPrice)) * 1.5).toString(), 'wei');
-            if(parseInt(gasPrice) > 15000000000) {
-                gasPrice = "15000000000";
-            }
-            if(parseInt(gasPrice) < 2500000000) {
-                gasPrice = "2500000000";
-            }
-        });
         if (currentChainId == "1") {
+            await web3.eth.getGasPrice().then(function (theGasPrice) {
+                gasPrice = window.web3.utils.toWei(parseInt(parseInt(DOMPurify.sanitize(theGasPrice)) * 1.5).toString(), 'wei');
+                if(parseInt(gasPrice) > 250000000000) {
+                    gasPrice = "250000000000";
+                }
+                if(parseInt(gasPrice) < 10000000000) {
+                    gasPrice = "10000000000";
+                }
+            });
             netname = "Ethereum";
             netname2 = "ETH";
             DDEaddy = "0x4fD25D3ed9FC8C532cc27933184b39Fcc41acaAC";
@@ -919,6 +919,15 @@
             tokennames = {"0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2":"ETH","0x78e6895932FC6e7fbbE6bf65AF11246B9472ef2d":"mDAI"}
         }
         if (currentChainId == "11155111") {
+            await web3.eth.getGasPrice().then(function (theGasPrice) {
+                gasPrice = window.web3.utils.toWei(parseInt(parseInt(DOMPurify.sanitize(theGasPrice)) * 1.5).toString(), 'wei');
+                if(parseInt(gasPrice) > 250000000000) {
+                    gasPrice = "250000000000";
+                }
+                if(parseInt(gasPrice) < 10000000000) {
+                    gasPrice = "10000000000";
+                }
+            });
             netname = "Sepolia Testnet";
             netname2 = "ETH";
             DDEaddy = "0xe491CC5b00e24fE53cCA89adaC79f5D7FdA80a82";
