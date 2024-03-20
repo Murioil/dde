@@ -1470,7 +1470,7 @@
             return;
           }
           try {
-            await DDEcontract.methods.authorizeContract(result.value, 0, true).send({"from":myaccounts,...gasOptions[gasSetting]});
+            await DDEcontract.methods.authorizeContract(result.value, "0x", true).send({"from":myaccounts,...gasOptions[gasSetting]});
             Swal.fire(translateThis("Success!"));
           } catch (e) {
             console.log(e);
