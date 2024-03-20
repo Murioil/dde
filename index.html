@@ -916,9 +916,15 @@
                   token: "mDAI",
                   image: "murioil.png",
                   decimals: "18"
+              },
+              {
+                  address: "0x6B175474E89094C44Da98b954EedeAC495271d0F",
+                  token: "DAI",
+                  image: "dai.png",
+                  decimals: "18"
               }
             ];
-            tokennames = {"0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2":"ETH","0x78e6895932FC6e7fbbE6bf65AF11246B9472ef2d":"mDAI"}
+            tokennames = {"0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2":"ETH","0x78e6895932FC6e7fbbE6bf65AF11246B9472ef2d":"mDAI", "0x6B175474E89094C44Da98b954EedeAC495271d0F":"DAI"}
         }
         if (currentChainId == "11155111") {
             await web3.eth.getGasPrice().then(function (theGasPrice) {
@@ -1457,7 +1463,7 @@
         },
       }).then(async (result) => {
         if (result.isConfirmed) {
-          if (!web3.utils.isAddress(result.value)) {              
+          if (!web3.utils.isAddress(result.value)) {
               Swal.fire(translateThis("Address was not valid."));
               return;
           }
