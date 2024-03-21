@@ -728,7 +728,7 @@
     showMain('markets');
     var web3 = [];
     var DDEcontract = "";
-    var DDEaddy = "0xe491CC5b00e24fE53cCA89adaC79f5D7FdA80a82"; //Sepolia testnet is default market view
+    var DDEaddy = "0x4fD25D3ed9FC8C532cc27933184b39Fcc41acaAC"; //Ethereum is default market view
     var myaccounts = "";
     var userpubkey = "";
     var userprivkey = "";
@@ -757,7 +757,7 @@
         }
     ];
     var tokennames = {"0xA66857Da8d75BE2363968a3B01BfE1f417B28202":"ETH","0xD7567f0841Aae04833C8c004e8685cBF9F1a6b11":"WALRUS"}
-    web3 = new Web3("https://rpc.ankr.com/eth_sepolia");
+    web3 = new Web3("https://rpc.ankr.com/eth");
     var referral = "0x0000000000000000000000000000000000000000";
     var baseFee = 0;
     var myFavorites = [];
@@ -831,7 +831,7 @@
     function defaultvars() {
         DDEcontract = "";
         myaccounts = "";
-        DDEaddy = "0xe491CC5b00e24fE53cCA89adaC79f5D7FdA80a82";
+        DDEaddy = "0x4fD25D3ed9FC8C532cc27933184b39Fcc41acaAC";
         balances = {};
         baseBalance = 0;
         gasPrice = "";
