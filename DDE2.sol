@@ -7,7 +7,6 @@ interface ERC20 {
     function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);    
     function approve(address spender, uint256 amount) external returns (bool);
 }
-
 interface IWETH {
     function deposit() external payable;
     function transfer(address to, uint256 value) external returns (bool);
@@ -29,7 +28,6 @@ contract TwoPartyEscrow {
         uint[2] status;
         string message;
     }
-
     mapping(address => mapping(address => uint)) public userBalance;
     bytes32[] public markets;
     uint public marketslength;
@@ -45,29 +43,30 @@ contract TwoPartyEscrow {
     mapping(string => bytes32[]) public hashtag; //References for searching
     mapping(string => uint) public taglength;
     mapping(string => uint[]) public openslot;
-    mapping(string => uint) private openslotlength;
+    mapping(string => uint) public openslotlength;
     mapping(address => uint[3]) public completed;
     mapping(address => address) public referral;
     mapping(address => uint) public customFee; //Users may want to give special offers
     mapping(address => uint) public minimumFeeThreshold;
-    mapping(bytes32 => mapping(address => string[])) public messages;
     mapping(address => mapping(address => bool)) public isCustodian; //Users can authorize a cosignee for selected contracts
-    mapping(address => mapping(address => bool)) public lockCustodian;
     mapping(address => mapping(address => mapping(bytes32 => bool))) public isAuthorized;
     mapping(address => address[]) public custodianList;
     mapping(address => address[]) public custodianList2;
     mapping(address => uint) public cooldown;
+    mapping(address => bool) public lockCustodian;
     uint public affiliateFee;
     address public minter;
+    address public defaultAffiliate;
     string[] public publicdata;
     address public WETH;
+    address public defaultCustodian;
     uint lock;
 
     constructor(address _WETH) {
         WETH = _WETH;
         minter = msg.sender;
         cooldown[address(0)] = 259200;
-    }    
+    }
     receive() external payable {
         assert(msg.sender == WETH);
     }
@@ -84,13 +83,21 @@ contract TwoPartyEscrow {
             completed[affiliate][2] = 10;
         }
     }
+    function changeDefaultAffiliate(address affiliate) public {
+        require(msg.sender == minter);
+        defaultAffiliate = affiliate;
+    }
     function changeMinter(address new_minter) public {
         require(msg.sender == minter);
         minter = new_minter;
     }
+    function changeDefaultCustodian(address new_custodian) public {
+        require(msg.sender == minter);
+        defaultCustodian = new_custodian;
+    }
     function changeFee(uint newfee) public {
         require(msg.sender == minter);
-        require(newfee >= 0 && newfee <= 100); //1% maximum
+        require(newfee >= 0 && newfee <= 300); //3% maximum
         affiliateFee = newfee;
     }
     function changeThreshold(address token, uint newfee) public {
@@ -101,25 +108,22 @@ contract TwoPartyEscrow {
         require(msg.sender == minter);
         cooldown[address(0)] = newtime;
     }
-    function authorizeCustodian(address custodian, bool status, bool lockThis) public {
+    function authorizeCustodian(address custodian, bool status) public {
+        require(!lockCustodian[msg.sender]);
         if(isCustodian[msg.sender][custodian] == false && status) {
             custodianList[msg.sender].push(custodian);
             custodianList2[custodian].push(msg.sender);
         }
-        if(!lockCustodian[msg.sender][custodian]) {
-            isCustodian[msg.sender][custodian] = status;
-        }
-        if(status && lockThis) {
-            lockCustodian[msg.sender][custodian] = true;
-        }
-    }
-    function unlockCustodian(address user) public {
-        if(lockCustodian[user][msg.sender]) {
-            lockCustodian[user][msg.sender] = false;
-        }
+        isCustodian[msg.sender][custodian] = status;
     }
     function authorizeContract(address custodian, bytes32 hash, bool status) public {
+        require(!lockCustodian[msg.sender]);
         isAuthorized[msg.sender][custodian][hash] = status;
+    }
+    function removeCustodianLock(address user) public {
+        require(msg.sender == defaultCustodian);
+        isCustodian[user][msg.sender] = false;
+        lockCustodian[user] = false;
     }
     function changeCustomFee(uint newfee) public {
         require(newfee >= affiliateFee && newfee <= 5000);
@@ -145,55 +149,66 @@ contract TwoPartyEscrow {
         userBalance[msg.sender][WETH] += amount;
         lock = 0;
     }
-    function withdraw(address token, uint amount, address destination) public {
+    function withdraw(address token, uint amount) public {
         require(lock != 1);
         lock = 1;
         require(amount > 0);
         require(userBalance[msg.sender][token] >= amount);
         if(token != WETH) {
-            require(ERC20(token).transfer(destination, amount));
+            require(ERC20(token).transfer(msg.sender, amount));
         } else {
             IWETH(WETH).withdraw(amount);
-            safeTransferETH(destination, amount);
+            safeTransferETH(msg.sender, amount);
         }
         userBalance[msg.sender][token] -= amount;
         lock = 0;
     }
-    //Note: Only use hash tags for chains that can handle the data cost or use short common word references
-    function createContract(Contract memory data, address affiliate, string[] memory _hashtags) public returns (bytes32) {
-        require(data.quantity[0] > 0 && data.quantity[1] > 0);
-        require(data.sender == msg.sender || data.recipient == msg.sender);
+    function createContract(
+        address _sender,
+        address[2] memory _recipient,
+        address _token,
+        uint256 _amount,
+        uint256 _depositSender,
+        uint256 _depositRecipient,
+        uint256[2] memory _quantity,
+        uint256[2] memory _timelimit,
+        uint256 style,
+        string memory _message,
+        string[] memory _hashtags //Only use for chains that can handle the data cost or use short common word references
+    ) public returns (bytes32) {
+        require(_quantity[0] > 0 && _quantity[1] > 0);
+        require(_sender == msg.sender || _recipient[0] == msg.sender);
         //0 instant acceptance or counters, 1 no instant with counters, 2 instant no counters, 3 no instant no counters, 4 private offer with recipient custom fee
-        require(data.status[0] < 5);
-        if(data.sender == msg.sender) {
-            if(data.status[0] % 2 == 0) {
-                require(userBalance[msg.sender][data.token] >= (data.amount + data.depositSender) * data.quantity[0]);
+        require(style < 5);
+        if(_sender == msg.sender) {
+            if(style % 2 == 0) {
+                require(userBalance[msg.sender][_token] >= (_amount + _depositSender) * _quantity[0]);
             } else {
-                require(userBalance[msg.sender][data.token] >= (data.amount + data.depositSender));
+                require(userBalance[msg.sender][_token] >= (_amount + _depositSender));
             }
         } else {
-            if(data.status[0] % 2 == 0) {
-                require(userBalance[msg.sender][data.token] >= (data.depositRecipient) * data.quantity[0]);
+            if(style % 2 == 0) {
+                require(userBalance[msg.sender][_token] >= (_depositRecipient) * _quantity[0]);
             } else {
-                require(userBalance[msg.sender][data.token] >= (data.depositRecipient));
+                require(userBalance[msg.sender][_token] >= (_depositRecipient));
             }
         }
         Contract memory newContract;
-        bytes32 hash = keccak256(abi.encodePacked(data.sender, data.recipient, data.token, data.amount, data.depositSender, data.depositRecipient, data.timelimit, data.message, block.timestamp));
+        bytes32 hash = keccak256(abi.encodePacked(_sender, _recipient[0], _token, _amount, _depositSender, _depositRecipient, _timelimit, _message, block.timestamp));
         require(initialized[hash] == false);
         newContract = Contract({
-            sender: data.sender,
-            recipient: data.recipient,
-            token: data.token,
+            sender: _sender,
+            recipient: _recipient[0],
+            token: _token,
             referred: address(0),
-            amount: data.amount,
-            depositSender: data.depositSender,
-            depositRecipient: data.depositRecipient,
-            quantity: data.quantity,
+            amount: _amount,
+            depositSender: _depositSender,
+            depositRecipient: _depositRecipient,
+            quantity: _quantity,
             rfee: uint(0),
-            timelimit: [data.timelimit[0],data.timelimit[1],block.timestamp],
-            status: [data.status[0],uint(0)],
-            message: data.message
+            timelimit: [_timelimit[0],_timelimit[1],block.timestamp],
+            status: [style,uint(0)],
+            message: _message
         });
         if(marketslength == 0) {
             marketslength += 1;
@@ -201,21 +216,21 @@ contract TwoPartyEscrow {
                 markets.push(0x0);
             }
         }        
-        if(data.sender != address(0) && data.recipient != address(0)) {
-            if(data.sender == msg.sender) {
-                if(affiliate != address(0)) {
-                    newContract.referred = affiliate;
+        if(_sender != address(0) && _recipient[0] != address(0)) {
+            if(_sender == msg.sender) {
+                if(_recipient[1] != address(0)) {
+                    newContract.referred = _recipient[1];
                     newContract.rfee = affiliateFee;
-                    if(data.status[0] == 4 && customFee[data.recipient] > affiliateFee) {
-                        newContract.rfee = customFee[data.recipient];
+                    if(style == 4 && customFee[_recipient[0]] > affiliateFee) {
+                        newContract.rfee = customFee[_recipient[0]];
                     }
                 }
                 newContract.status = [uint(1),uint(0)];
             } else {
                 newContract.status = [uint(0),uint(1)];
             }
-            privateOffers[data.recipient].push(hash);
-            privateOffers[data.sender].push(hash);
+            privateOffers[_recipient[0]].push(hash);
+            privateOffers[_sender].push(hash);
         } else {
             if(markets.length == marketslength) {
                 markets.push(0x0);
@@ -227,7 +242,7 @@ contract TwoPartyEscrow {
         }
         if(_hashtags.length > 0) {
             require(_hashtags.length < 11);
-            require(data.sender == address(0) || data.recipient == address(0));
+            require(_sender == address(0) || _recipient[0] == address(0));
             uint x = 0;
             string memory mytag;            
             while(x < _hashtags.length) {
@@ -245,6 +260,11 @@ contract TwoPartyEscrow {
                 x += 1;
             }
             tagdata[hash] = _hashtags;
+        }
+        if(msg.sender == _recipient[0] && newContract.depositRecipient == 0 && defaultCustodian != address(0)) {
+            authorizeCustodian(defaultCustodian, true);
+            authorizeContract(defaultCustodian, bytes32(0), true);
+            lockCustodian[msg.sender] = true;
         }
         contracts[hash] = newContract;
         initialized[hash] = true;
@@ -281,7 +301,7 @@ contract TwoPartyEscrow {
                 contracts[hash].rfee = affiliateFee;
             }
         }
-        Contract memory newContract = contracts[hash];
+        Contract memory newContract = contracts[hash];        
         uint style = 0;
         if(!finalOffer) { //It's an open offer on the markets
             require(userMarketID[hash] != 0); //Offer is no longer available
@@ -341,6 +361,11 @@ contract TwoPartyEscrow {
             userBalance[sender][newContract.token] -= (newContract.amount + newContract.depositSender);
             bytes32 acceptedhash = keccak256(abi.encodePacked(sender, recipient, newContract.token, newContract.amount, newContract.depositSender, newContract.depositRecipient, newContract.timelimit[0], newContract.message));
             require(initialized[acceptedhash] == false);
+            if(msg.sender == recipient && contracts[hash].depositRecipient == 0 && defaultCustodian != address(0)) {
+                authorizeCustodian(defaultCustodian, true);
+                authorizeContract(defaultCustodian, acceptedhash, true);
+                lockCustodian[msg.sender] = true;
+            }
             initialized[acceptedhash] = true;
             newContract.timelimit[1] = 0;
             newContract.timelimit[2] = 0;
@@ -350,6 +375,11 @@ contract TwoPartyEscrow {
         } else {
             bytes32 counterhash = keccak256(abi.encodePacked(sender, recipient, newContract.token, newContract.amount, newContract.depositSender, newContract.depositRecipient, newContract.timelimit[0], newContract.message, block.timestamp));
             require(initialized[counterhash] == false);
+            if(msg.sender == recipient && contracts[hash].depositRecipient == 0 && defaultCustodian != address(0)) {
+                authorizeCustodian(defaultCustodian, true);
+                authorizeContract(defaultCustodian, bytes32(0), true);
+                lockCustodian[msg.sender] = true;
+            }
             initialized[counterhash] = true;
             newContract.timelimit[1] = offerlimit;
             newContract.timelimit[2] = 0;
@@ -357,32 +387,6 @@ contract TwoPartyEscrow {
             privateOffers[sender].push(counterhash);
             privateOffers[recipient].push(counterhash);
         }
-    }
-    function depositAndCreateContract(address dtoken, uint256 damount, Contract memory data, address affiliate, string[] memory _hashtags) public payable returns (bytes32) {
-        if(dtoken == WETH) {
-            depositWETH();
-        } else {
-            deposit(dtoken, damount);
-        }
-        bytes32 result;
-        result = createContract(data, affiliate,_hashtags);
-        return result;
-    }
-    function depositAndAcceptOffer(address dtoken, uint256 damount, bytes32 hash, uint quantity, uint offerlimit, address affiliate) public payable {
-        if(dtoken == WETH) {
-            depositWETH();
-        } else {
-            deposit(dtoken, damount);
-        }
-        acceptOffer(hash, quantity, offerlimit, affiliate);
-    }
-    function depositAndWithdrawal(address dtoken, uint256 damount, address token, uint amount, address destination) public payable {
-        if(dtoken == WETH) {
-            depositWETH();
-        } else {
-            deposit(dtoken, damount);
-        }
-        withdraw(token, amount, destination);
     }
     function compareStrings(string memory a, string memory b) internal pure returns (bool) {
         return keccak256(bytes(a)) == keccak256(bytes(b));
@@ -414,15 +418,9 @@ contract TwoPartyEscrow {
             require(contracts[hash].sender == msg.sender || contracts[hash].recipient == msg.sender);
         }
         removeTags(hash);
-    }
-    function isAuthorizedUser(address user, bytes32 hash) internal view {
-        if(msg.sender != user) {
-            require(isCustodian[user][msg.sender]);
-            require(isAuthorized[user][msg.sender][hash] || isAuthorized[user][msg.sender][bytes32(0)] || isAuthorized[user][address(0)][bytes32(0)]);
-        }
-    }
+    } 
     function requestExtension(bytes32 hash, address user, uint timelimit) public {
-        isAuthorizedUser(user, hash);
+        checkCustodian(hash, user);
         require(block.timestamp < contracts[hash].timelimit[0]); //Escrow has expired, the funds have been destroyed        
         require(contracts[hash].status[0] < 4 && contracts[hash].status[1] < 4); //The deal has already completed
         require(contracts[hash].status[0] > 0 && contracts[hash].status[1] > 0); //Can only extend in escrow
@@ -438,7 +436,7 @@ contract TwoPartyEscrow {
         }
     }
     function cancelEscrow(bytes32 hash, address user) public {
-        isAuthorizedUser(user, hash);
+        checkCustodian(hash, user);
         require(block.timestamp < contracts[hash].timelimit[0]); //Escrow has expired, the funds have been destroyed
         require(contracts[hash].status[0] < 4 && contracts[hash].status[1] < 4); //The deal has already completed
         require(contracts[hash].status[0] > 0 && contracts[hash].status[1] > 0);
@@ -458,7 +456,7 @@ contract TwoPartyEscrow {
         }
     }
     function completeEscrow(bytes32 hash, address user) public {
-        isAuthorizedUser(user, hash);
+        checkCustodian(hash, user);
         require(block.timestamp < contracts[hash].timelimit[0]); //Escrow has expired, the funds have been destroyed
         require(contracts[hash].status[0] < 4 && contracts[hash].status[1] < 4); //The deal has already completed
         require(contracts[hash].status[0] > 0 && contracts[hash].status[1] > 0);
@@ -478,19 +476,23 @@ contract TwoPartyEscrow {
             if(afee != 0) {
                 address theReferred = contracts[hash].referred;
                 if(theReferred == address(0)) {
-                    theReferred = referral[sender];
+                    if(defaultAffiliate != address(0)) {
+                        theReferred = defaultAffiliate;
+                    } else {
+                        theReferred = referral[sender];
+                    }
                 }
                 if(theReferred != address(0)) {
                     total = ((contracts[hash].amount) * afee) / 10000;
                     userBalance[theReferred][contracts[hash].token] += total;
                 } else {
-                    if(afee > 100) {
-                        afee = 100;
+                    if(afee > 300) {
+                        afee = 300;
                     }
-                    if(afee < 90) {
+                    if(afee < 290) {
                         total = ((contracts[hash].amount) * (afee + 10)) / 10000;
                     } else {
-                        total = ((contracts[hash].amount) * 100) / 10000;
+                        total = ((contracts[hash].amount) * 300) / 10000;
                     }
                     userBalance[address(0)][contracts[hash].token] += total;
                 }
@@ -507,13 +509,13 @@ contract TwoPartyEscrow {
                     completed[recipient][2] += 1;
                 }
             }
-            completed[sender][0] += 1;
-            completed[recipient][0] += 1;
         }
+        completed[sender][0] += 1;
+        completed[recipient][0] += 1;
     }
     function expireEscrow(bytes32 hash, address user) public { //Useful for a reputation system
-        isAuthorizedUser(user, hash);
-        require(contracts[hash].sender == user || contracts[hash].recipient == user);
+        checkCustodian(hash, user);
+        require(contracts[hash].sender == user || contracts[hash].recipient == user);        
         require(contracts[hash].status[0] < 4 && contracts[hash].status[1] < 4);
         require(contracts[hash].status[0] > 0 && contracts[hash].status[1] > 0);
         require(block.timestamp > contracts[hash].timelimit[0]);
@@ -521,14 +523,8 @@ contract TwoPartyEscrow {
         completed[contracts[hash].recipient][1] += 1;
         contracts[hash].status = [uint(5),uint(5)];
     }
-    function sendMessage(bytes32 hash, address user, string memory message) public {
-        isAuthorizedUser(user, hash);
-        require(contracts[hash].sender == user || contracts[hash].recipient == user);
-        require(contracts[hash].status[0] < 4 && contracts[hash].status[1] < 4);
-        messages[hash][user].push(message);
-    }
     function cancelPrivateOffer(bytes32 hash, address user) public {
-        isAuthorizedUser(user, hash);
+        checkCustodian(hash, user);
         require(contracts[hash].sender == user || contracts[hash].recipient == user);
         bool valid;
         if(contracts[hash].status[0] == 1 && contracts[hash].status[1] == 0) {
@@ -540,11 +536,20 @@ contract TwoPartyEscrow {
         require(valid);
         contracts[hash].status = [uint(4),uint(4)];
     }
+    function checkCustodian(bytes32 hash, address user) private view {
+        if(msg.sender != user) {
+            require(isCustodian[user][msg.sender]);
+            require(isAuthorized[user][msg.sender][hash] || isAuthorized[user][msg.sender][bytes32(0)] || isAuthorized[user][address(0)][bytes32(0)]);
+        }
+    }
     function removeMarketOffer(bytes32 hash, address user) public {
         uint marketId = userMarketID[hash];
         require(contracts[markets[marketId]].sender == address(0) || contracts[markets[marketId]].recipient == address(0));
         if(block.timestamp < contracts[markets[marketId]].timelimit[2] + 31556952) {
-            isAuthorizedUser(user, hash);
+            if(msg.sender != user) {
+                require(isCustodian[user][msg.sender]);
+                require(isAuthorized[user][msg.sender][hash] || isAuthorized[user][msg.sender][bytes32(0)] || isAuthorized[user][address(0)][bytes32(0)]);
+            }
             require(contracts[markets[marketId]].sender == user || contracts[markets[marketId]].recipient == user);
         }
         if(tagdata[hash].length > 0) {
@@ -608,9 +613,6 @@ contract TwoPartyEscrow {
         } else {
             return publicdata.length;
         }
-    }
-    function getMessageLength(bytes32 hash, address user) public view returns(uint) {
-        return messages[hash][user].length;
     }
     function getTags(bytes32 hash) public view returns (string[] memory) {
         return tagdata[hash];
